@@ -70,13 +70,34 @@
 
   .add-form { padding: 1.5rem; }
   .form-group { margin-bottom: 14px; }
-  .form-group label { display: block; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
-  .form-group input, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; }
+  .form-group label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace;
+    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .form-group input, .form-group select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 13px;
+    font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s;
+  }
   .form-group input:focus, .form-group select:focus { border-color: var(--red); }
+  .form-group input.loading { border-color: var(--muted); color: var(--muted); }
+  .form-group input.filled { border-color: var(--green); }
   .form-group select option { background: var(--surface2); }
+
+  .price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .price-row .form-group { margin-bottom: 0; }
+
+  .lookup-hint { font-size: 11px; font-family: 'DM Mono', monospace; }
+  .lookup-hint.loading { color: var(--muted); }
+  .lookup-hint.success { color: var(--green); }
+  .lookup-hint.error { color: var(--red); }
+
   .btn { width: 100%; background: var(--red); color: white; border: none; border-radius: 6px; padding: 11px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.15s; }
   .btn:hover { opacity: 0.88; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); margin-bottom: 10px; }
+  .btn-secondary:hover { opacity: 1; border-color: var(--muted); color: var(--text); }
 
   .feed-item { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
   .feed-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-top: 5px; flex-shrink: 0; }
@@ -186,15 +207,45 @@
         <span style="font-size:11px;color:var(--green);font-family:'DM Mono',monospace;">logged in</span>
       </div>
       <div class="add-form">
-        <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
-        <div class="form-group"><label>Ticker</label><input type="text" id="f-ticker" placeholder="TSLA" style="text-transform:uppercase"></div>
-        <div class="form-group"><label>Company name</label><input type="text" id="f-company" placeholder="Tesla"></div>
+
+        <div class="form-group">
+          <label>Date of call</label>
+          <input type="date" id="f-date" onchange="onTickerOrDateChange()">
+        </div>
+
+        <div class="form-group">
+          <label>
+            Ticker
+            <span class="lookup-hint" id="lookup-hint"></span>
+          </label>
+          <input type="text" id="f-ticker" placeholder="TSLA" style="text-transform:uppercase"
+            oninput="this.value=this.value.toUpperCase()" onblur="onTickerOrDateChange()">
+        </div>
+
+        <div class="form-group">
+          <label>Company name</label>
+          <input type="text" id="f-company" placeholder="Auto-filled from ticker">
+        </div>
+
         <div class="form-group">
           <label>Cramer's call</label>
           <select id="f-call"><option value="BUY">BUY</option><option value="SELL">SELL</option></select>
         </div>
-        <div class="form-group"><label>Price at call ($)</label><input type="number" id="f-price-then" placeholder="285.00" step="0.01"></div>
-        <div class="form-group"><label>Current price ($)</label><input type="number" id="f-price-now" placeholder="241.00" step="0.01"></div>
+
+        <div class="price-row">
+          <div class="form-group">
+            <label>Price at call ($)</label>
+            <input type="number" id="f-price-then" placeholder="—" step="0.01" readonly>
+          </div>
+          <div class="form-group">
+            <label>
+              Current price ($)
+              <span id="refresh-hint" style="font-size:10px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;" onclick="refreshCurrentPrice()" title="Refresh current price">↻</span>
+            </label>
+            <input type="number" id="f-price-now" placeholder="—" step="0.01" readonly>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>Source</label>
           <select id="f-source">
@@ -202,6 +253,7 @@
             <option>Squawk Box</option><option>Other CNBC</option>
           </select>
         </div>
+
         <button class="btn" id="submit-btn" onclick="addCall()">Add call</button>
       </div>
     </div>
@@ -215,13 +267,15 @@
 <script>
 const SUPABASE_URL = 'https://wyjokoaqmvbpaunekqms.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5am9rb2FxbXZicGF1bmVrcW1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NDA2NTgsImV4cCI6MjA5MDIxNjY1OH0.7fsf8L1hgpMwLAxcvTa4sJRY1wIlLwOlo-souTtO1L4';
+const FMP_KEY = 'KjKhz78Xs3SsLnOTHkRYPVqg8eQUceUM';
 const ADMIN_PASSWORD = 'Tucker@2016';
 
 let isAdmin = false;
 let calls = [];
 let chart;
+let lookupTimer;
 
-const headers = {
+const sbHeaders = {
   'apikey': SUPABASE_KEY,
   'Authorization': 'Bearer ' + SUPABASE_KEY,
   'Content-Type': 'application/json'
@@ -229,13 +283,143 @@ const headers = {
 
 async function loadCalls() {
   try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/calls?order=date.desc', { headers });
+    const res = await fetch(SUPABASE_URL + '/rest/v1/calls?order=date.desc', { headers: sbHeaders });
     const data = await res.json();
     calls = Array.isArray(data) ? data : [];
     render();
   } catch(e) {
     document.getElementById('calls-table').innerHTML =
       '<tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--red);font-size:13px;">Could not connect to database.</td></tr>';
+  }
+}
+
+function setHint(msg, type) {
+  const el = document.getElementById('lookup-hint');
+  el.textContent = msg;
+  el.className = 'lookup-hint ' + (type || '');
+}
+
+function onTickerOrDateChange() {
+  clearTimeout(lookupTimer);
+  const ticker = document.getElementById('f-ticker').value.trim();
+  const date = document.getElementById('f-date').value;
+  if (!ticker || ticker.length < 1) return;
+  lookupTimer = setTimeout(() => lookupPrices(ticker, date), 600);
+}
+
+async function lookupPrices(ticker, date) {
+  setHint('looking up...', 'loading');
+  document.getElementById('f-price-then').classList.add('loading');
+  document.getElementById('f-price-now').classList.add('loading');
+  document.getElementById('f-company').value = '';
+
+  try {
+    const [profileRes, histRes, quoteRes] = await Promise.all([
+      fetch(`https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${FMP_KEY}`),
+      fetch(`https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}?from=${date}&to=${date}&apikey=${FMP_KEY}`),
+      fetch(`https://financialmodelingprep.com/api/v3/quote/${ticker}?apikey=${FMP_KEY}`)
+    ]);
+
+    const profile = await profileRes.json();
+    const hist = await histRes.json();
+    const quote = await quoteRes.json();
+
+    const priceThenEl = document.getElementById('f-price-then');
+    const priceNowEl = document.getElementById('f-price-now');
+    const companyEl = document.getElementById('f-company');
+
+    if (Array.isArray(profile) && profile[0]) {
+      companyEl.value = profile[0].companyName || ticker;
+    }
+
+    let gotThen = false, gotNow = false;
+
+    if (hist.historical && hist.historical.length > 0) {
+      priceThenEl.value = hist.historical[0].close.toFixed(2);
+      priceThenEl.classList.remove('loading');
+      priceThenEl.classList.add('filled');
+      gotThen = true;
+    } else {
+      const closest = await fetchClosestPrice(ticker, date);
+      if (closest) {
+        priceThenEl.value = closest.toFixed(2);
+        priceThenEl.classList.remove('loading');
+        priceThenEl.classList.add('filled');
+        gotThen = true;
+      } else {
+        priceThenEl.value = '';
+        priceThenEl.placeholder = 'Enter manually';
+        priceThenEl.classList.remove('loading', 'filled');
+        priceThenEl.removeAttribute('readonly');
+      }
+    }
+
+    if (Array.isArray(quote) && quote[0] && quote[0].price) {
+      priceNowEl.value = quote[0].price.toFixed(2);
+      priceNowEl.classList.remove('loading');
+      priceNowEl.classList.add('filled');
+      gotNow = true;
+    } else {
+      priceNowEl.value = '';
+      priceNowEl.placeholder = 'Enter manually';
+      priceNowEl.classList.remove('loading', 'filled');
+      priceNowEl.removeAttribute('readonly');
+    }
+
+    if (gotThen && gotNow) {
+      setHint('prices auto-filled', 'success');
+    } else if (gotThen || gotNow) {
+      setHint('partial — fill missing', 'error');
+    } else {
+      setHint('not found — enter manually', 'error');
+    }
+
+  } catch(e) {
+    setHint('lookup failed — enter manually', 'error');
+    const priceThenEl = document.getElementById('f-price-then');
+    const priceNowEl = document.getElementById('f-price-now');
+    priceThenEl.classList.remove('loading');
+    priceNowEl.classList.remove('loading');
+    priceThenEl.removeAttribute('readonly');
+    priceNowEl.removeAttribute('readonly');
+  }
+}
+
+async function fetchClosestPrice(ticker, targetDate) {
+  try {
+    const from = new Date(targetDate);
+    from.setDate(from.getDate() - 5);
+    const fromStr = from.toISOString().split('T')[0];
+    const to = new Date(targetDate);
+    to.setDate(to.getDate() + 5);
+    const toStr = to.toISOString().split('T')[0];
+    const res = await fetch(`https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}?from=${fromStr}&to=${toStr}&apikey=${FMP_KEY}`);
+    const data = await res.json();
+    if (data.historical && data.historical.length > 0) {
+      const sorted = data.historical.sort((a,b) => {
+        return Math.abs(new Date(a.date) - new Date(targetDate)) - Math.abs(new Date(b.date) - new Date(targetDate));
+      });
+      return sorted[0].close;
+    }
+  } catch(e) {}
+  return null;
+}
+
+async function refreshCurrentPrice() {
+  const ticker = document.getElementById('f-ticker').value.trim();
+  if (!ticker) return;
+  setHint('refreshing...', 'loading');
+  try {
+    const res = await fetch(`https://financialmodelingprep.com/api/v3/quote/${ticker}?apikey=${FMP_KEY}`);
+    const data = await res.json();
+    if (Array.isArray(data) && data[0] && data[0].price) {
+      const el = document.getElementById('f-price-now');
+      el.value = data[0].price.toFixed(2);
+      el.classList.add('filled');
+      setHint('price refreshed', 'success');
+    }
+  } catch(e) {
+    setHint('refresh failed', 'error');
   }
 }
 
@@ -400,7 +584,7 @@ async function addCall() {
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/calls', {
       method: 'POST',
-      headers: { ...headers, 'Prefer': 'return=representation' },
+      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
       body: JSON.stringify({ date, ticker, company, call, price_then, price_now, source })
     });
     if (res.ok) {
@@ -408,7 +592,12 @@ async function addCall() {
       document.getElementById('f-ticker').value = '';
       document.getElementById('f-company').value = '';
       document.getElementById('f-price-then').value = '';
+      document.getElementById('f-price-then').classList.remove('filled');
+      document.getElementById('f-price-then').setAttribute('readonly', true);
       document.getElementById('f-price-now').value = '';
+      document.getElementById('f-price-now').classList.remove('filled');
+      document.getElementById('f-price-now').setAttribute('readonly', true);
+      setHint('', '');
       await loadCalls();
     } else {
       const err = await res.json();
