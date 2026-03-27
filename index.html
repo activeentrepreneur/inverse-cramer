@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inverse Cramer Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #E8382A;
+    --green: #1a9e5c;
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --text: #f0ede8;
+    --muted: #888;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  header { border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; }
+  .logo span { color: var(--red); }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .disclaimer-badge { font-size: 11px; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; font-family: 'DM Mono', monospace; }
+  #admin-btn { font-size: 11px; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; font-family: 'DM Mono', monospace; background: none; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+  #admin-btn:hover { border-color: var(--red); color: var(--red); }
+  #admin-btn.active { border-color: var(--green); color: var(--green); }
+
+  .hero { padding: 3rem 2rem 2rem; border-bottom: 1px solid var(--border); }
+  .hero-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--red); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .hero h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(48px, 8vw, 96px); line-height: 0.95; letter-spacing: 2px; margin-bottom: 1rem; }
+  .hero h1 em { color: var(--red); font-style: normal; }
+  .hero p { font-size: 15px; color: var(--muted); max-width: 560px; line-height: 1.7; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); border-bottom: 1px solid var(--border); }
+  .stat { padding: 1.5rem 2rem; border-right: 1px solid var(--border); }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 1px; }
+  .stat-value.up { color: var(--green); }
+  .stat-value.down { color: var(--red); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .main { display: grid; grid-template-columns: 1fr 360px; min-height: calc(100vh - 320px); }
+  @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+
+  .left { border-right: 1px solid var(--border); }
+  .section-header { padding: 1.25rem 2rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .section-title { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .chart-wrap { padding: 1.5rem 2rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { padding: 10px 16px; text-align: left; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--surface); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 12px 16px; }
+  td.ticker { font-family: 'DM Mono', monospace; font-weight: 500; }
+  td.company { color: var(--muted); font-size: 12px; }
+  .pill { display: inline-block; font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 4px; font-family: 'DM Mono', monospace; }
+  .pill-buy  { background: #1a2e1e; color: #4ade80; border: 1px solid #1f4d29; }
+  .pill-sell { background: #2e1a1a; color: #f87171; border: 1px solid #4d1f1f; }
+  .ret-pos { color: var(--green); font-family: 'DM Mono', monospace; }
+  .ret-neg { color: var(--red); font-family: 'DM Mono', monospace; }
+
+  .admin-panel { display: none; }
+  .admin-panel.visible { display: block; }
+
+  .add-form { padding: 1.5rem; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .form-group input, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--red); }
+  .form-group select option { background: var(--surface2); }
+  .btn { width: 100%; background: var(--red); color: white; border: none; border-radius: 6px; padding: 11px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.88; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .feed-item { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
+  .feed-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-top: 5px; flex-shrink: 0; }
+  .feed-dot.g { background: var(--green); }
+  .feed-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .feed-text strong { color: var(--text); }
+
+  .login-box { padding: 1.5rem; }
+  .login-box p { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+  .login-error { font-size: 12px; color: var(--red); margin-top: 8px; display: none; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; font-size: 13px; font-family: 'DM Mono', monospace; color: var(--text); opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 100; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+
+  footer { border-top: 1px solid var(--border); padding: 1.5rem 2rem; font-size: 12px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header>
+  <div class="logo">INVERSE <span>CRAMER</span></div>
+  <div class="header-right">
+    <span class="disclaimer-badge">satire · not financial advice</span>
+    <button id="admin-btn" onclick="toggleAdminPanel()">admin</button>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-label">Performance tracker</div>
+  <h1>DO THE <em>OPPOSITE</em><br>OF JIM CRAMER</h1>
+  <p>Tracking every public call from Jim Cramer and calculating what would have happened if you did the exact opposite. Updated regularly.</p>
+</div>
+
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-label">Inverse Cramer</div>
+    <div class="stat-value up" id="stat-inverse">—</div>
+    <div class="stat-sub">avg return per call</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Following Cramer</div>
+    <div class="stat-value down" id="stat-cramer">—</div>
+    <div class="stat-sub">avg return per call</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Calls tracked</div>
+    <div class="stat-value" id="stat-count">—</div>
+    <div class="stat-sub">total since launch</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Win rate (inverse)</div>
+    <div class="stat-value up" id="stat-winrate">—</div>
+    <div class="stat-sub">% of calls inverse won</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="left">
+    <div class="section-header">
+      <span class="section-title">Portfolio performance</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="perfChart" height="200"></canvas>
+    </div>
+    <div class="section-header">
+      <span class="section-title">All calls</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Ticker</th><th>Company</th><th>Call</th>
+          <th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th>
+        </tr>
+      </thead>
+      <tbody id="calls-table">
+        <tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--muted);font-size:13px;">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="right">
+    <div id="locked-view">
+      <div class="section-header"><span class="section-title">Activity feed</span></div>
+      <div id="feed"></div>
+    </div>
+
+    <div class="admin-panel" id="login-view">
+      <div class="section-header"><span class="section-title">Admin login</span></div>
+      <div class="login-box">
+        <p>Enter your password to unlock the call submission form.</p>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="pw-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkPassword()">
+        </div>
+        <button class="btn" onclick="checkPassword()">Unlock</button>
+        <div class="login-error" id="login-error">Incorrect password.</div>
+      </div>
+    </div>
+
+    <div class="admin-panel" id="form-view">
+      <div class="section-header">
+        <span class="section-title">Log a call</span>
+        <span style="font-size:11px;color:var(--green);font-family:'DM Mono',monospace;">logged in</span>
+      </div>
+      <div class="add-form">
+        <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
+        <div class="form-group"><label>Ticker</label><input type="text" id="f-ticker" placeholder="TSLA" style="text-transform:uppercase"></div>
+        <div class="form-group"><label>Company name</label><input type="text" id="f-company" placeholder="Tesla"></div>
+        <div class="form-group">
+          <label>Cramer's call</label>
+          <select id="f-call"><option value="BUY">BUY</option><option value="SELL">SELL</option></select>
+        </div>
+        <div class="form-group"><label>Price at call ($)</label><input type="number" id="f-price-then" placeholder="285.00" step="0.01"></div>
+        <div class="form-group"><label>Current price ($)</label><input type="number" id="f-price-now" placeholder="241.00" step="0.01"></div>
+        <div class="form-group">
+          <label>Source</label>
+          <select id="f-source">
+            <option>Mad Money</option><option>Twitter/X</option>
+            <option>Squawk Box</option><option>Other CNBC</option>
+          </select>
+        </div>
+        <button class="btn" id="submit-btn" onclick="addCall()">Add call</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  This site is satire and for entertainment purposes only. Nothing here is financial advice. Jim Cramer is a TV personality; this tracker is a joke based on an internet meme. Always do your own research before making any investment decisions.
+</footer>
+
+<script>
+const SUPABASE_URL = 'https://wyjokoaqmvbpaunekqms.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5am9rb2FxbXZicGF1bmVrcW1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NDA2NTgsImV4cCI6MjA5MDIxNjY1OH0.7fsf8L1hgpMwLAxcvTa4sJRY1wIlLwOlo-souTtO1L4';
+const ADMIN_PASSWORD = 'Tucker@2016';
+
+let isAdmin = false;
+let calls = [];
+let chart;
+
+const headers = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json'
+};
+
+async function loadCalls() {
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/calls?order=date.desc', { headers });
+    const data = await res.json();
+    calls = Array.isArray(data) ? data : [];
+    render();
+  } catch(e) {
+    document.getElementById('calls-table').innerHTML =
+      '<tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--red);font-size:13px;">Could not connect to database.</td></tr>';
+  }
+}
+
+function cramerReturn(c) {
+  const r = ((c.price_now - c.price_then) / c.price_then) * 100;
+  return c.call === 'BUY' ? r : -r;
+}
+function inverseReturn(c) { return -cramerReturn(c); }
+function fmt(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
+
+function renderTable() {
+  const tbody = document.getElementById('calls-table');
+  if (!calls.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--muted);font-size:13px;">No calls logged yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = calls.map(c => {
+    const cr = cramerReturn(c), ir = inverseReturn(c);
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">${c.date}</td>
+      <td class="ticker">${c.ticker}</td>
+      <td class="company">${c.company}</td>
+      <td><span class="pill pill-${c.call.toLowerCase()}">${c.call}</span></td>
+      <td class="${cr>=0?'ret-pos':'ret-neg'}">${fmt(cr)}</td>
+      <td class="${ir>=0?'ret-pos':'ret-neg'}">${fmt(ir)}</td>
+      <td style="font-size:12px;color:var(--muted)">${c.source}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStats() {
+  if (!calls.length) return;
+  const avgCr = calls.reduce((s,c) => s + cramerReturn(c), 0) / calls.length;
+  const avgIr = calls.reduce((s,c) => s + inverseReturn(c), 0) / calls.length;
+  const winRate = Math.round(calls.filter(c => inverseReturn(c) > 0).length / calls.length * 100);
+  const crEl = document.getElementById('stat-cramer');
+  crEl.textContent = fmt(avgCr);
+  crEl.className = 'stat-value ' + (avgCr >= 0 ? 'up' : 'down');
+  const irEl = document.getElementById('stat-inverse');
+  irEl.textContent = fmt(avgIr);
+  irEl.className = 'stat-value ' + (avgIr >= 0 ? 'up' : 'down');
+  document.getElementById('stat-count').textContent = calls.length;
+  document.getElementById('stat-winrate').textContent = winRate + '%';
+}
+
+function renderFeed() {
+  const feed = document.getElementById('feed');
+  if (!calls.length) {
+    feed.innerHTML = '<div style="padding:1.5rem;font-size:13px;color:var(--muted);">No calls yet.</div>';
+    return;
+  }
+  feed.innerHTML = calls.slice(0, 10).map(c => {
+    const ir = inverseReturn(c), won = ir > 0;
+    return `<div class="feed-item">
+      <div class="feed-dot ${won?'g':''}"></div>
+      <div class="feed-text"><strong>${c.ticker}</strong> — Cramer said ${c.call} on ${c.date}. Inverse: <strong style="color:${won?'#4ade80':'#f87171'}">${fmt(ir)}</strong></div>
+    </div>`;
+  }).join('');
+}
+
+function renderChart() {
+  const sorted = [...calls].sort((a,b) => a.date.localeCompare(b.date));
+  let cumCr = 0, cumIr = 0;
+  const labels = [], dataCr = [], dataIr = [];
+  sorted.forEach(c => {
+    cumCr += cramerReturn(c); cumIr += inverseReturn(c);
+    labels.push(c.ticker);
+    dataCr.push(parseFloat(cumCr.toFixed(2)));
+    dataIr.push(parseFloat(cumIr.toFixed(2)));
+  });
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('perfChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Inverse Cramer', data: dataIr, borderColor: '#1a9e5c', backgroundColor: 'rgba(26,158,92,0.08)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#1a9e5c', tension: 0.3, fill: true },
+        { label: 'Following Cramer', data: dataCr, borderColor: '#E8382A', backgroundColor: 'rgba(232,56,42,0.06)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#E8382A', tension: 0.3, fill: true }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#888', font: { family: 'DM Mono', size: 11 }, boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: '#1e1e1e', borderColor: '#2a2a2a', borderWidth: 1,
+          titleColor: '#f0ede8', bodyColor: '#888',
+          titleFont: { family: 'DM Mono' }, bodyFont: { family: 'DM Mono' },
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y>=0?'+':''}${ctx.parsed.y.toFixed(1)}%` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#555', font: { family: 'DM Mono', size: 11 } }, grid: { color: '#1e1e1e' } },
+        y: { ticks: { color: '#555', font: { family: 'DM Mono', size: 11 }, callback: v => (v>=0?'+':'')+v.toFixed(0)+'%' }, grid: { color: '#1e1e1e' } }
+      }
+    }
+  });
+}
+
+function render() { renderTable(); renderStats(); renderFeed(); renderChart(); }
+
+function toggleAdminPanel() {
+  if (isAdmin) {
+    isAdmin = false;
+    document.getElementById('admin-btn').textContent = 'admin';
+    document.getElementById('admin-btn').classList.remove('active');
+    document.getElementById('form-view').classList.remove('visible');
+    document.getElementById('locked-view').style.display = '';
+    return;
+  }
+  const loginVisible = document.getElementById('login-view').classList.contains('visible');
+  if (loginVisible) {
+    document.getElementById('login-view').classList.remove('visible');
+    document.getElementById('locked-view').style.display = '';
+  } else {
+    document.getElementById('login-view').classList.add('visible');
+    document.getElementById('locked-view').style.display = 'none';
+    setTimeout(() => document.getElementById('pw-input').focus(), 50);
+  }
+}
+
+function checkPassword() {
+  if (document.getElementById('pw-input').value === ADMIN_PASSWORD) {
+    isAdmin = true;
+    document.getElementById('login-view').classList.remove('visible');
+    document.getElementById('form-view').classList.add('visible');
+    document.getElementById('locked-view').style.display = 'none';
+    document.getElementById('admin-btn').textContent = 'logout';
+    document.getElementById('admin-btn').classList.add('active');
+    document.getElementById('pw-input').value = '';
+    document.getElementById('login-error').style.display = 'none';
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+async function addCall() {
+  const date = document.getElementById('f-date').value;
+  const ticker = document.getElementById('f-ticker').value.toUpperCase().trim();
+  const company = document.getElementById('f-company').value.trim();
+  const call = document.getElementById('f-call').value;
+  const price_then = parseFloat(document.getElementById('f-price-then').value);
+  const price_now = parseFloat(document.getElementById('f-price-now').value);
+  const source = document.getElementById('f-source').value;
+
+  if (!date || !ticker || !company || isNaN(price_then) || isNaN(price_now)) {
+    showToast('Please fill in all fields.', 'error'); return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/calls', {
+      method: 'POST',
+      headers: { ...headers, 'Prefer': 'return=representation' },
+      body: JSON.stringify({ date, ticker, company, call, price_then, price_now, source })
+    });
+    if (res.ok) {
+      showToast(ticker + ' call saved.', 'success');
+      document.getElementById('f-ticker').value = '';
+      document.getElementById('f-company').value = '';
+      document.getElementById('f-price-then').value = '';
+      document.getElementById('f-price-now').value = '';
+      await loadCalls();
+    } else {
+      const err = await res.json();
+      showToast('Error: ' + (err.message || 'Could not save.'), 'error');
+    }
+  } catch(e) {
+    showToast('Network error. Try again.', 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Add call';
+}
+
+document.getElementById('f-date').valueAsDate = new Date();
+loadCalls();
+</script>
+</body>
+</html>
