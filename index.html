@@ -531,19 +531,20 @@ function renderTable() {
   const head  = document.getElementById('table-head');
 
   if (!calls.length) {
-    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th>';
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--muted);font-size:13px;">No calls logged yet.</td></tr>';
+    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Buy price</th><th>Current</th><th>Total return</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th>';
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:2rem;text-align:center;color:var(--muted);font-size:13px;">No calls logged yet.</td></tr>';
     return;
   }
 
   if (isAdmin) {
-    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th><th></th>';
+    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Buy price</th><th>Current</th><th>Total return</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th><th></th>';
   } else {
-    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th>';
+    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Buy price</th><th>Current</th><th>Total return</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th>';
   }
 
   tbody.innerHTML = calls.map(c => {
     const cr = cramerReturn(c), ir = inverseReturn(c);
+    const rawReturn = ((c.price_now - c.price_then) / c.price_then) * 100;
     const adminCols = isAdmin ? `
       <td>
         <div class="row-actions">
@@ -556,6 +557,9 @@ function renderTable() {
       <td class="ticker">${c.ticker}</td>
       <td class="company">${c.company}</td>
       <td><span class="pill pill-${c.call.toLowerCase()}">${c.call}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">$${parseFloat(c.price_then).toFixed(2)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">$${parseFloat(c.price_now).toFixed(2)}</td>
+      <td class="${rawReturn>=0?'ret-pos':'ret-neg'}">${fmt(rawReturn)}</td>
       <td class="${cr>=0?'ret-pos':'ret-neg'}">${fmt(cr)}</td>
       <td class="${ir>=0?'ret-pos':'ret-neg'}">${fmt(ir)}</td>
       <td style="font-size:12px;color:var(--muted)">${c.source}</td>
@@ -581,6 +585,9 @@ function startEdit(id) {
     </td>
     <td><input class="edit-input e-pthen" type="number" step="0.01" value="${c.price_then}" style="width:80px"></td>
     <td><input class="edit-input e-pnow"  type="number" step="0.01" value="${c.price_now}"  style="width:80px"></td>
+    <td style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">auto</td>
+    <td style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">auto</td>
+    <td style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">auto</td>
     <td>
       <select class="edit-select e-source" style="width:110px">
         <option ${c.source==='Mad Money'  ?'selected':''}>Mad Money</option>
