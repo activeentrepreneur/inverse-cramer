@@ -56,7 +56,7 @@
   thead th { padding: 10px 16px; text-align: left; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--surface); }
   tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
   tbody tr:hover { background: var(--surface2); }
-  tbody td { padding: 12px 16px; }
+  tbody td { padding: 10px 16px; vertical-align: middle; }
   td.ticker { font-family: 'DM Mono', monospace; font-weight: 500; }
   td.company { color: var(--muted); font-size: 12px; }
   .pill { display: inline-block; font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 4px; font-family: 'DM Mono', monospace; }
@@ -64,6 +64,20 @@
   .pill-sell { background: #2e1a1a; color: #f87171; border: 1px solid #4d1f1f; }
   .ret-pos { color: var(--green); font-family: 'DM Mono', monospace; }
   .ret-neg { color: var(--red); font-family: 'DM Mono', monospace; }
+
+  .row-actions { display: flex; gap: 6px; }
+  .row-btn { font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: none; cursor: pointer; color: var(--muted); transition: all 0.15s; white-space: nowrap; }
+  .row-btn.edit:hover { border-color: var(--muted); color: var(--text); }
+  .row-btn.del:hover  { border-color: var(--red); color: var(--red); }
+
+  /* Inline edit row */
+  tr.editing td { background: #1a1a1a; padding: 6px 8px; }
+  .edit-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 12px; font-family: 'DM Sans', sans-serif; outline: none; width: 100%; }
+  .edit-input:focus { border-color: var(--green); }
+  .edit-select { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px; color: var(--text); font-size: 12px; font-family: 'DM Sans', sans-serif; outline: none; width: 100%; }
+  .row-btn.save { border-color: var(--green); color: var(--green); }
+  .row-btn.save:hover { background: rgba(26,158,92,0.1); }
+  .row-btn.cancel:hover { border-color: var(--muted); color: var(--text); }
 
   .refresh-all-btn { font-size: 11px; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; font-family: 'DM Mono', monospace; background: none; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
   .refresh-all-btn:hover { border-color: var(--green); color: var(--green); }
@@ -185,13 +199,13 @@
     </div>
     <table>
       <thead>
-        <tr>
+        <tr id="table-head">
           <th>Date</th><th>Ticker</th><th>Company</th><th>Call</th>
           <th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th>
         </tr>
       </thead>
       <tbody id="calls-table">
-        <tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--muted);font-size:13px;">Loading...</td></tr>
+        <tr><td colspan="8" style="padding:2rem;text-align:center;color:var(--muted);font-size:13px;">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -221,7 +235,6 @@
         <span style="font-size:11px;color:var(--green);font-family:'DM Mono',monospace;">logged in</span>
       </div>
       <div class="add-form">
-
         <div class="rules-box">
           <button class="rules-toggle" id="rules-toggle" onclick="toggleRules()">
             <span>What counts as a call?</span>
@@ -326,8 +339,7 @@ const sbHeaders = {
   'Content-Type': 'application/json'
 };
 
-// --- Price fetching via corsproxy.io + Yahoo Finance ---
-// Uses two Yahoo endpoints and two proxies as fallback chain
+// --- Price fetching ---
 
 async function fetchWithProxy(url) {
   const proxies = [
@@ -347,55 +359,40 @@ async function fetchWithProxy(url) {
 }
 
 async function getCurrentPrice(ticker) {
-  const endpoints = [
-    `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`,
-    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
-  ];
-  for (const url of endpoints) {
+  for (const host of ['query2','query1']) {
     try {
-      const data = await fetchWithProxy(url);
-      if (!data) continue;
+      const data = await fetchWithProxy(`https://${host}.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`);
       const meta = data?.chart?.result?.[0]?.meta;
-      if (!meta) continue;
-      const price = meta.regularMarketPrice || meta.previousClose;
+      const price = meta?.regularMarketPrice || meta?.previousClose;
       if (price) return parseFloat(price.toFixed(2));
-    } catch(e) { continue; }
+    } catch(e) {}
   }
   return null;
 }
 
 async function getHistoricalPrice(ticker, date) {
   const d = new Date(date + 'T16:00:00Z');
-  const from = Math.floor(d.getTime() / 1000) - 86400 * 5;
-  const to   = Math.floor(d.getTime() / 1000) + 86400 * 5;
-  const endpoints = [
-    `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${from}&period2=${to}`,
-    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${from}&period2=${to}`
-  ];
-  for (const url of endpoints) {
+  const from = Math.floor(d.getTime()/1000) - 86400*5;
+  const to   = Math.floor(d.getTime()/1000) + 86400*5;
+  for (const host of ['query2','query1']) {
     try {
-      const data = await fetchWithProxy(url);
-      if (!data) continue;
+      const data = await fetchWithProxy(`https://${host}.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${from}&period2=${to}`);
       const result = data?.chart?.result?.[0];
       if (!result) continue;
-      const timestamps = result.timestamp || [];
+      const ts = result.timestamp || [];
       const closes = result.indicators?.quote?.[0]?.close || [];
-      const target = d.getTime() / 1000;
+      const target = d.getTime()/1000;
       let best = null, bestDiff = Infinity;
-      timestamps.forEach((ts, i) => {
-        const diff = Math.abs(ts - target);
-        if (diff < bestDiff && closes[i] != null) { bestDiff = diff; best = closes[i]; }
-      });
+      ts.forEach((t,i) => { const diff = Math.abs(t-target); if (diff < bestDiff && closes[i] != null) { bestDiff = diff; best = closes[i]; }});
       if (best) return parseFloat(best.toFixed(2));
-    } catch(e) { continue; }
+    } catch(e) {}
   }
   return null;
 }
 
 async function getCompanyName(ticker) {
-  const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${ticker}&quotesCount=1&newsCount=0`;
   try {
-    const data = await fetchWithProxy(url);
+    const data = await fetchWithProxy(`https://query2.finance.yahoo.com/v1/finance/search?q=${ticker}&quotesCount=1&newsCount=0`);
     const q = data?.quotes?.[0];
     return q ? (q.longname || q.shortname || null) : null;
   } catch(e) { return null; }
@@ -405,8 +402,7 @@ async function getCompanyName(ticker) {
 
 function setHint(msg, type) {
   const el = document.getElementById('lookup-hint');
-  el.textContent = msg;
-  el.className = 'lookup-hint ' + (type || '');
+  el.textContent = msg; el.className = 'lookup-hint ' + (type||'');
 }
 
 function onTickerOrDateChange() {
@@ -418,10 +414,8 @@ function onTickerOrDateChange() {
 
 async function lookupPrices(ticker, date) {
   setHint('looking up...', 'loading');
-  const thenEl = document.getElementById('f-price-then');
-  const nowEl  = document.getElementById('f-price-now');
-  thenEl.value = ''; nowEl.value = '';
-  thenEl.className = ''; nowEl.className = '';
+  document.getElementById('f-price-then').value = '';
+  document.getElementById('f-price-now').value = '';
 
   const [name, histPrice, curPrice] = await Promise.all([
     getCompanyName(ticker),
@@ -432,22 +426,10 @@ async function lookupPrices(ticker, date) {
   if (name) document.getElementById('f-company').value = name;
 
   let gotThen = false, gotNow = false;
-
-  if (histPrice) {
-    thenEl.value = histPrice;
-    thenEl.className = 'filled';
-    gotThen = true;
-  } else {
-    thenEl.placeholder = 'Enter manually';
-  }
-
-  if (curPrice) {
-    nowEl.value = curPrice;
-    nowEl.className = 'filled';
-    gotNow = true;
-  } else {
-    nowEl.placeholder = 'Enter manually';
-  }
+  if (histPrice) { document.getElementById('f-price-then').value = histPrice; document.getElementById('f-price-then').className = 'filled'; gotThen = true; }
+  else { document.getElementById('f-price-then').placeholder = 'Enter manually'; }
+  if (curPrice)  { document.getElementById('f-price-now').value  = curPrice;  document.getElementById('f-price-now').className  = 'filled'; gotNow  = true; }
+  else { document.getElementById('f-price-now').placeholder = 'Enter manually'; }
 
   if (gotThen && gotNow) setHint('prices filled', 'success');
   else if (gotThen || gotNow) setHint('partial — fill missing', 'error');
@@ -459,50 +441,37 @@ async function refreshFormPrice() {
   if (!ticker) return;
   setHint('refreshing...', 'loading');
   const price = await getCurrentPrice(ticker);
-  if (price) {
-    document.getElementById('f-price-now').value = price;
-    document.getElementById('f-price-now').className = 'filled';
-    setHint('refreshed', 'success');
-  } else {
-    setHint('could not refresh', 'error');
-  }
+  if (price) { document.getElementById('f-price-now').value = price; document.getElementById('f-price-now').className = 'filled'; setHint('refreshed', 'success'); }
+  else setHint('could not refresh', 'error');
 }
 
-// --- Refresh all prices in DB ---
+// --- Refresh all prices ---
 
 async function refreshAllPrices() {
   if (!calls.length) return;
   const btn = document.getElementById('refresh-all-btn');
   btn.disabled = true; btn.textContent = '↻ refreshing...';
   showToast('Fetching prices...', '');
-
   const tickers = [...new Set(calls.map(c => c.ticker))];
   const priceMap = {};
-  for (const t of tickers) {
-    const p = await getCurrentPrice(t);
-    if (p) priceMap[t] = p;
-  }
-
+  for (const t of tickers) { const p = await getCurrentPrice(t); if (p) priceMap[t] = p; }
   let updated = 0;
   for (const c of calls) {
-    const p = priceMap[c.ticker];
-    if (!p) continue;
+    const p = priceMap[c.ticker]; if (!p) continue;
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/calls?id=eq.${c.id}`, {
-        method: 'PATCH',
-        headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+        method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
         body: JSON.stringify({ price_now: p })
       });
       if (res.ok) updated++;
     } catch(e) {}
   }
-
   showToast(`Updated ${updated} of ${calls.length} calls.`, 'success');
   btn.disabled = false; btn.textContent = '↻ refresh all prices';
   await loadCalls();
 }
 
-// --- Supabase ---
+// --- Supabase CRUD ---
 
 async function loadCalls() {
   try {
@@ -512,26 +481,77 @@ async function loadCalls() {
     render();
   } catch(e) {
     document.getElementById('calls-table').innerHTML =
-      '<tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--red);font-size:13px;">Could not connect to database.</td></tr>';
+      '<tr><td colspan="8" style="padding:2rem;text-align:center;color:var(--red);font-size:13px;">Could not connect to database.</td></tr>';
   }
 }
 
-function cramerReturn(c) {
-  const r = ((c.price_now - c.price_then) / c.price_then) * 100;
-  return c.call === 'BUY' ? r : -r;
+async function deleteCall(id, ticker) {
+  if (!confirm(`Delete the ${ticker} call? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/calls?id=eq.${id}`, {
+      method: 'DELETE', headers: sbHeaders
+    });
+    if (res.ok) { showToast(`${ticker} deleted.`, 'success'); await loadCalls(); }
+    else showToast('Delete failed.', 'error');
+  } catch(e) { showToast('Network error.', 'error'); }
 }
+
+async function saveEdit(id) {
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  const patch = {
+    date:       row.querySelector('.e-date').value,
+    ticker:     row.querySelector('.e-ticker').value.toUpperCase().trim(),
+    company:    row.querySelector('.e-company').value.trim(),
+    call:       row.querySelector('.e-call').value,
+    price_then: parseFloat(row.querySelector('.e-pthen').value),
+    price_now:  parseFloat(row.querySelector('.e-pnow').value),
+    source:     row.querySelector('.e-source').value
+  };
+  if (!patch.date || !patch.ticker || !patch.company || isNaN(patch.price_then) || isNaN(patch.price_now)) {
+    showToast('All fields required.', 'error'); return;
+  }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/calls?id=eq.${id}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(patch)
+    });
+    if (res.ok) { showToast(`${patch.ticker} updated.`, 'success'); await loadCalls(); }
+    else showToast('Update failed.', 'error');
+  } catch(e) { showToast('Network error.', 'error'); }
+}
+
+// --- Rendering ---
+
+function cramerReturn(c) { const r = ((c.price_now - c.price_then) / c.price_then) * 100; return c.call === 'BUY' ? r : -r; }
 function inverseReturn(c) { return -cramerReturn(c); }
 function fmt(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
 
 function renderTable() {
   const tbody = document.getElementById('calls-table');
+  const head  = document.getElementById('table-head');
+
   if (!calls.length) {
+    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th>';
     tbody.innerHTML = '<tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--muted);font-size:13px;">No calls logged yet.</td></tr>';
     return;
   }
+
+  if (isAdmin) {
+    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th><th></th>';
+  } else {
+    head.innerHTML = '<th>Date</th><th>Ticker</th><th>Company</th><th>Call</th><th>Cramer ret.</th><th>Inverse ret.</th><th>Source</th>';
+  }
+
   tbody.innerHTML = calls.map(c => {
     const cr = cramerReturn(c), ir = inverseReturn(c);
-    return `<tr>
+    const adminCols = isAdmin ? `
+      <td>
+        <div class="row-actions">
+          <button class="row-btn edit" onclick="startEdit('${c.id}')">edit</button>
+          <button class="row-btn del"  onclick="deleteCall('${c.id}','${c.ticker}')">delete</button>
+        </div>
+      </td>` : '';
+    return `<tr data-id="${c.id}">
       <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">${c.date}</td>
       <td class="ticker">${c.ticker}</td>
       <td class="company">${c.company}</td>
@@ -539,8 +559,42 @@ function renderTable() {
       <td class="${cr>=0?'ret-pos':'ret-neg'}">${fmt(cr)}</td>
       <td class="${ir>=0?'ret-pos':'ret-neg'}">${fmt(ir)}</td>
       <td style="font-size:12px;color:var(--muted)">${c.source}</td>
+      ${adminCols}
     </tr>`;
   }).join('');
+}
+
+function startEdit(id) {
+  const c = calls.find(x => x.id === id);
+  if (!c) return;
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  row.classList.add('editing');
+  row.innerHTML = `
+    <td><input class="edit-input e-date" type="date" value="${c.date}"></td>
+    <td><input class="edit-input e-ticker" type="text" value="${c.ticker}" style="text-transform:uppercase;width:70px"></td>
+    <td><input class="edit-input e-company" type="text" value="${c.company}"></td>
+    <td>
+      <select class="edit-select e-call">
+        <option value="BUY"  ${c.call==='BUY' ?'selected':''}>BUY</option>
+        <option value="SELL" ${c.call==='SELL'?'selected':''}>SELL</option>
+      </select>
+    </td>
+    <td><input class="edit-input e-pthen" type="number" step="0.01" value="${c.price_then}" style="width:80px"></td>
+    <td><input class="edit-input e-pnow"  type="number" step="0.01" value="${c.price_now}"  style="width:80px"></td>
+    <td>
+      <select class="edit-select e-source" style="width:110px">
+        <option ${c.source==='Mad Money'  ?'selected':''}>Mad Money</option>
+        <option ${c.source==='Twitter/X'  ?'selected':''}>Twitter/X</option>
+        <option ${c.source==='Squawk Box' ?'selected':''}>Squawk Box</option>
+        <option ${c.source==='Other CNBC' ?'selected':''}>Other CNBC</option>
+      </select>
+    </td>
+    <td>
+      <div class="row-actions">
+        <button class="row-btn save"   onclick="saveEdit('${id}')">save</button>
+        <button class="row-btn cancel" onclick="renderTable()">cancel</button>
+      </div>
+    </td>`;
 }
 
 function renderStats() {
@@ -558,11 +612,8 @@ function renderStats() {
 
 function renderFeed() {
   const feed = document.getElementById('feed');
-  if (!calls.length) {
-    feed.innerHTML = '<div style="padding:1.5rem;font-size:13px;color:var(--muted);">No calls yet.</div>';
-    return;
-  }
-  feed.innerHTML = calls.slice(0, 10).map(c => {
+  if (!calls.length) { feed.innerHTML = '<div style="padding:1.5rem;font-size:13px;color:var(--muted);">No calls yet.</div>'; return; }
+  feed.innerHTML = calls.slice(0,10).map(c => {
     const ir = inverseReturn(c), won = ir > 0;
     return `<div class="feed-item">
       <div class="feed-dot ${won?'g':''}"></div>
@@ -624,6 +675,7 @@ function toggleAdminPanel() {
     document.getElementById('admin-btn').classList.remove('active');
     document.getElementById('form-view').classList.remove('visible');
     document.getElementById('locked-view').style.display = '';
+    renderTable();
     return;
   }
   const loginVisible = document.getElementById('login-view').classList.contains('visible');
@@ -647,6 +699,7 @@ function checkPassword() {
     document.getElementById('admin-btn').classList.add('active');
     document.getElementById('pw-input').value = '';
     document.getElementById('login-error').style.display = 'none';
+    renderTable();
   } else {
     document.getElementById('login-error').style.display = 'block';
     document.getElementById('pw-input').value = '';
@@ -656,8 +709,7 @@ function checkPassword() {
 
 function showToast(msg, type) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + (type || '');
+  t.textContent = msg; t.className = 'toast show ' + (type||'');
   setTimeout(() => { t.className = 'toast'; }, 3500);
 }
 
@@ -687,7 +739,8 @@ async function addCall() {
       showToast(ticker + ' saved.', 'success');
       ['f-ticker','f-company','f-price-then','f-price-now'].forEach(id => {
         const el = document.getElementById(id);
-        el.value = ''; el.className = ''; el.placeholder = id.includes('price') ? '—' : el.placeholder;
+        el.value = ''; el.className = '';
+        if (id.includes('price')) el.placeholder = '—';
       });
       setHint('', '');
       await loadCalls();
@@ -695,9 +748,7 @@ async function addCall() {
       const err = await res.json();
       showToast('Error: ' + (err.message || 'Could not save.'), 'error');
     }
-  } catch(e) {
-    showToast('Network error. Try again.', 'error');
-  }
+  } catch(e) { showToast('Network error. Try again.', 'error'); }
   btn.disabled = false; btn.textContent = 'Add call';
 }
 
