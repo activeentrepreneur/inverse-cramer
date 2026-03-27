@@ -65,11 +65,7 @@
   .ret-pos { color: var(--green); font-family: 'DM Mono', monospace; }
   .ret-neg { color: var(--red); font-family: 'DM Mono', monospace; }
 
-  .refresh-all-btn {
-    font-size: 11px; color: var(--muted); border: 1px solid var(--border);
-    padding: 4px 10px; border-radius: 20px; font-family: 'DM Mono', monospace;
-    background: none; cursor: pointer; transition: border-color 0.15s, color 0.15s;
-  }
+  .refresh-all-btn { font-size: 11px; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; font-family: 'DM Mono', monospace; background: none; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
   .refresh-all-btn:hover { border-color: var(--green); color: var(--green); }
   .refresh-all-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -81,9 +77,7 @@
   .form-group label { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
   .form-group input, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; }
   .form-group input:focus, .form-group select:focus { border-color: var(--red); }
-  .form-group input.loading { border-color: var(--muted); color: var(--muted); }
   .form-group input.filled { border-color: var(--green); }
-  .form-group input.manual { border-color: var(--muted); }
   .form-group select option { background: var(--surface2); }
 
   .price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
@@ -98,7 +92,6 @@
   .btn:hover { opacity: 0.88; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* Rules box */
   .rules-box { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 18px; overflow: hidden; }
   .rules-toggle { width: 100%; background: var(--surface2); border: none; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; transition: color 0.15s; }
   .rules-toggle:hover { color: var(--text); }
@@ -112,7 +105,7 @@
   .rules-section-title.yes { color: var(--green); }
   .rules-section-title.no  { color: var(--red); }
   .rules-section-title.tip { color: var(--muted); }
-  .rules-list { list-style: none; padding: 0; }
+  .rules-list { list-style: none; }
   .rules-list li { font-size: 12px; color: var(--muted); padding: 3px 0 3px 14px; position: relative; line-height: 1.5; }
   .rules-list li::before { position: absolute; left: 0; font-size: 10px; }
   .rules-list.yes li::before { content: '✓'; color: var(--green); }
@@ -271,7 +264,6 @@
           <label>Date of call</label>
           <input type="date" id="f-date" onchange="onTickerOrDateChange()">
         </div>
-
         <div class="form-group">
           <label>
             Ticker
@@ -280,17 +272,14 @@
           <input type="text" id="f-ticker" placeholder="TSLA" style="text-transform:uppercase"
             oninput="this.value=this.value.toUpperCase()" onblur="onTickerOrDateChange()">
         </div>
-
         <div class="form-group">
           <label>Company name</label>
           <input type="text" id="f-company" placeholder="Auto-filled from ticker">
         </div>
-
         <div class="form-group">
           <label>Cramer's call</label>
           <select id="f-call"><option value="BUY">BUY</option><option value="SELL">SELL</option></select>
         </div>
-
         <div class="price-row">
           <div class="form-group">
             <label>Price at call ($)</label>
@@ -299,12 +288,11 @@
           <div class="form-group">
             <label>
               Current price ($)
-              <span style="font-size:10px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;" onclick="refreshFormCurrentPrice()" title="Refresh">↻</span>
+              <span style="font-size:10px;color:var(--muted);cursor:pointer;" onclick="refreshFormPrice()" title="Refresh">↻</span>
             </label>
             <input type="number" id="f-price-now" placeholder="—" step="0.01">
           </div>
         </div>
-
         <div class="form-group">
           <label>Source</label>
           <select id="f-source">
@@ -312,7 +300,6 @@
             <option>Squawk Box</option><option>Other CNBC</option>
           </select>
         </div>
-
         <button class="btn" id="submit-btn" onclick="addCall()">Add call</button>
       </div>
     </div>
@@ -327,7 +314,6 @@
 const SUPABASE_URL = 'https://wyjokoaqmvbpaunekqms.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5am9rb2FxbXZicGF1bmVrcW1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NDA2NTgsImV4cCI6MjA5MDIxNjY1OH0.7fsf8L1hgpMwLAxcvTa4sJRY1wIlLwOlo-souTtO1L4';
 const ADMIN_PASSWORD = 'Tucker@2016';
-const PROXY = 'https://api.allorigins.win/get?url=';
 
 let isAdmin = false;
 let calls = [];
@@ -340,47 +326,82 @@ const sbHeaders = {
   'Content-Type': 'application/json'
 };
 
-// --- Yahoo Finance via allorigins proxy ---
+// --- Price fetching via corsproxy.io + Yahoo Finance ---
+// Uses two Yahoo endpoints and two proxies as fallback chain
 
-async function yahooQuote(ticker) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
-  const res = await fetch(PROXY + encodeURIComponent(url));
-  const outer = await res.json();
-  const data = JSON.parse(outer.contents);
-  const meta = data.chart.result[0].meta;
-  return meta.regularMarketPrice || meta.previousClose;
+async function fetchWithProxy(url) {
+  const proxies = [
+    t => `https://corsproxy.io/?url=${encodeURIComponent(t)}`,
+    t => `https://api.allorigins.win/raw?url=${encodeURIComponent(t)}`
+  ];
+  for (const makeUrl of proxies) {
+    try {
+      const res = await fetch(makeUrl(url), { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (!text || text.startsWith('<')) continue;
+      return JSON.parse(text);
+    } catch(e) { continue; }
+  }
+  return null;
 }
 
-async function yahooHistory(ticker, date) {
-  const d = new Date(date + 'T12:00:00Z');
-  const from = Math.floor(d.getTime() / 1000) - 86400 * 4;
-  const to   = Math.floor(d.getTime() / 1000) + 86400 * 4;
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${from}&period2=${to}`;
-  const res = await fetch(PROXY + encodeURIComponent(url));
-  const outer = await res.json();
-  const data = JSON.parse(outer.contents);
-  const result = data.chart.result[0];
-  const timestamps = result.timestamp;
-  const closes = result.indicators.quote[0].close;
-  const target = d.getTime() / 1000;
-  let best = null, bestDiff = Infinity;
-  timestamps.forEach((ts, i) => {
-    const diff = Math.abs(ts - target);
-    if (diff < bestDiff && closes[i] != null) { bestDiff = diff; best = closes[i]; }
-  });
-  return best;
+async function getCurrentPrice(ticker) {
+  const endpoints = [
+    `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
+  ];
+  for (const url of endpoints) {
+    try {
+      const data = await fetchWithProxy(url);
+      if (!data) continue;
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      const price = meta.regularMarketPrice || meta.previousClose;
+      if (price) return parseFloat(price.toFixed(2));
+    } catch(e) { continue; }
+  }
+  return null;
 }
 
-async function yahooName(ticker) {
-  const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${ticker}&quotesCount=1`;
-  const res = await fetch(PROXY + encodeURIComponent(url));
-  const outer = await res.json();
-  const data = JSON.parse(outer.contents);
-  const q = data.quotes && data.quotes[0];
-  return q ? (q.longname || q.shortname || ticker) : ticker;
+async function getHistoricalPrice(ticker, date) {
+  const d = new Date(date + 'T16:00:00Z');
+  const from = Math.floor(d.getTime() / 1000) - 86400 * 5;
+  const to   = Math.floor(d.getTime() / 1000) + 86400 * 5;
+  const endpoints = [
+    `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${from}&period2=${to}`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&period1=${from}&period2=${to}`
+  ];
+  for (const url of endpoints) {
+    try {
+      const data = await fetchWithProxy(url);
+      if (!data) continue;
+      const result = data?.chart?.result?.[0];
+      if (!result) continue;
+      const timestamps = result.timestamp || [];
+      const closes = result.indicators?.quote?.[0]?.close || [];
+      const target = d.getTime() / 1000;
+      let best = null, bestDiff = Infinity;
+      timestamps.forEach((ts, i) => {
+        const diff = Math.abs(ts - target);
+        if (diff < bestDiff && closes[i] != null) { bestDiff = diff; best = closes[i]; }
+      });
+      if (best) return parseFloat(best.toFixed(2));
+    } catch(e) { continue; }
+  }
+  return null;
 }
 
-// --- Form price lookup ---
+async function getCompanyName(ticker) {
+  const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${ticker}&quotesCount=1&newsCount=0`;
+  try {
+    const data = await fetchWithProxy(url);
+    const q = data?.quotes?.[0];
+    return q ? (q.longname || q.shortname || null) : null;
+  } catch(e) { return null; }
+}
+
+// --- Form lookup ---
 
 function setHint(msg, type) {
   const el = document.getElementById('lookup-hint');
@@ -391,114 +412,93 @@ function setHint(msg, type) {
 function onTickerOrDateChange() {
   clearTimeout(lookupTimer);
   const ticker = document.getElementById('f-ticker').value.trim();
-  const date = document.getElementById('f-date').value;
   if (!ticker) return;
-  lookupTimer = setTimeout(() => lookupPrices(ticker, date), 700);
+  lookupTimer = setTimeout(() => lookupPrices(ticker, document.getElementById('f-date').value), 700);
 }
 
 async function lookupPrices(ticker, date) {
   setHint('looking up...', 'loading');
   const thenEl = document.getElementById('f-price-then');
   const nowEl  = document.getElementById('f-price-now');
-  const coEl   = document.getElementById('f-company');
   thenEl.value = ''; nowEl.value = '';
-  thenEl.className = 'form-group input loading';
-  nowEl.className  = 'form-group input loading';
+  thenEl.className = ''; nowEl.className = '';
 
-  try {
-    const [name, histPrice, currentPrice] = await Promise.all([
-      yahooName(ticker),
-      yahooHistory(ticker, date),
-      yahooQuote(ticker)
-    ]);
+  const [name, histPrice, curPrice] = await Promise.all([
+    getCompanyName(ticker),
+    getHistoricalPrice(ticker, date),
+    getCurrentPrice(ticker)
+  ]);
 
-    if (name) coEl.value = name;
+  if (name) document.getElementById('f-company').value = name;
 
-    let gotThen = false, gotNow = false;
+  let gotThen = false, gotNow = false;
 
-    if (histPrice) {
-      thenEl.value = histPrice.toFixed(2);
-      thenEl.className = 'filled';
-      gotThen = true;
-    } else {
-      thenEl.placeholder = 'Enter manually';
-      thenEl.className = 'manual';
-    }
-
-    if (currentPrice) {
-      nowEl.value = currentPrice.toFixed(2);
-      nowEl.className = 'filled';
-      gotNow = true;
-    } else {
-      nowEl.placeholder = 'Enter manually';
-      nowEl.className = 'manual';
-    }
-
-    if (gotThen && gotNow) setHint('prices auto-filled', 'success');
-    else if (gotThen || gotNow) setHint('partial — fill missing', 'error');
-    else setHint('not found — enter manually', 'error');
-
-  } catch(e) {
-    setHint('lookup failed — enter manually', 'error');
+  if (histPrice) {
+    thenEl.value = histPrice;
+    thenEl.className = 'filled';
+    gotThen = true;
+  } else {
     thenEl.placeholder = 'Enter manually';
-    nowEl.placeholder  = 'Enter manually';
-    thenEl.className = 'manual';
-    nowEl.className  = 'manual';
   }
+
+  if (curPrice) {
+    nowEl.value = curPrice;
+    nowEl.className = 'filled';
+    gotNow = true;
+  } else {
+    nowEl.placeholder = 'Enter manually';
+  }
+
+  if (gotThen && gotNow) setHint('prices filled', 'success');
+  else if (gotThen || gotNow) setHint('partial — fill missing', 'error');
+  else setHint('enter prices manually', 'error');
 }
 
-async function refreshFormCurrentPrice() {
+async function refreshFormPrice() {
   const ticker = document.getElementById('f-ticker').value.trim();
   if (!ticker) return;
   setHint('refreshing...', 'loading');
-  try {
-    const price = await yahooQuote(ticker);
-    if (price) {
-      const el = document.getElementById('f-price-now');
-      el.value = price.toFixed(2);
-      el.className = 'filled';
-      setHint('refreshed', 'success');
-    } else {
-      setHint('not found', 'error');
-    }
-  } catch(e) { setHint('failed', 'error'); }
+  const price = await getCurrentPrice(ticker);
+  if (price) {
+    document.getElementById('f-price-now').value = price;
+    document.getElementById('f-price-now').className = 'filled';
+    setHint('refreshed', 'success');
+  } else {
+    setHint('could not refresh', 'error');
+  }
 }
 
-// --- Refresh all prices in database ---
+// --- Refresh all prices in DB ---
 
 async function refreshAllPrices() {
   if (!calls.length) return;
   const btn = document.getElementById('refresh-all-btn');
-  btn.disabled = true;
-  btn.textContent = '↻ refreshing...';
+  btn.disabled = true; btn.textContent = '↻ refreshing...';
+  showToast('Fetching prices...', '');
 
   const tickers = [...new Set(calls.map(c => c.ticker))];
   const priceMap = {};
-
-  for (const ticker of tickers) {
-    try {
-      const price = await yahooQuote(ticker);
-      if (price) priceMap[ticker] = price;
-    } catch(e) {}
+  for (const t of tickers) {
+    const p = await getCurrentPrice(t);
+    if (p) priceMap[t] = p;
   }
 
   let updated = 0;
   for (const c of calls) {
-    const newPrice = priceMap[c.ticker];
-    if (!newPrice) continue;
+    const p = priceMap[c.ticker];
+    if (!p) continue;
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/calls?id=eq.${c.id}`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/calls?id=eq.${c.id}`, {
         method: 'PATCH',
         headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ price_now: parseFloat(newPrice.toFixed(2)) })
+        body: JSON.stringify({ price_now: p })
       });
-      updated++;
+      if (res.ok) updated++;
     } catch(e) {}
   }
 
   showToast(`Updated ${updated} of ${calls.length} calls.`, 'success');
-  btn.disabled = false;
-  btn.textContent = '↻ refresh all prices';
+  btn.disabled = false; btn.textContent = '↻ refresh all prices';
   await loadCalls();
 }
 
@@ -684,15 +684,11 @@ async function addCall() {
       body: JSON.stringify({ date, ticker, company, call, price_then, price_now, source })
     });
     if (res.ok) {
-      showToast(ticker + ' call saved.', 'success');
-      document.getElementById('f-ticker').value = '';
-      document.getElementById('f-company').value = '';
-      document.getElementById('f-price-then').value = '';
-      document.getElementById('f-price-then').className = '';
-      document.getElementById('f-price-then').placeholder = '—';
-      document.getElementById('f-price-now').value = '';
-      document.getElementById('f-price-now').className = '';
-      document.getElementById('f-price-now').placeholder = '—';
+      showToast(ticker + ' saved.', 'success');
+      ['f-ticker','f-company','f-price-then','f-price-now'].forEach(id => {
+        const el = document.getElementById(id);
+        el.value = ''; el.className = ''; el.placeholder = id.includes('price') ? '—' : el.placeholder;
+      });
       setHint('', '');
       await loadCalls();
     } else {
