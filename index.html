@@ -70,16 +70,8 @@
 
   .add-form { padding: 1.5rem; }
   .form-group { margin-bottom: 14px; }
-  .form-group label {
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace;
-    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px;
-  }
-  .form-group input, .form-group select {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 13px;
-    font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s;
-  }
+  .form-group label { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .form-group input, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; }
   .form-group input:focus, .form-group select:focus { border-color: var(--red); }
   .form-group input.loading { border-color: var(--muted); color: var(--muted); }
   .form-group input.filled { border-color: var(--green); }
@@ -96,8 +88,65 @@
   .btn { width: 100%; background: var(--red); color: white; border: none; border-radius: 6px; padding: 11px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.15s; }
   .btn:hover { opacity: 0.88; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-secondary { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); margin-bottom: 10px; }
-  .btn-secondary:hover { opacity: 1; border-color: var(--muted); color: var(--text); }
+
+  /* Rules box */
+  .rules-box {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .rules-toggle {
+    width: 100%;
+    background: var(--surface2);
+    border: none;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: color 0.15s;
+  }
+  .rules-toggle:hover { color: var(--text); }
+  .rules-toggle .chevron { transition: transform 0.2s; font-size: 10px; }
+  .rules-toggle.open .chevron { transform: rotate(180deg); }
+  .rules-body { display: none; padding: 14px; border-top: 1px solid var(--border); }
+  .rules-body.open { display: block; }
+
+  .rules-section { margin-bottom: 12px; }
+  .rules-section:last-child { margin-bottom: 0; }
+  .rules-section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .rules-section-title.yes { color: var(--green); }
+  .rules-section-title.no  { color: var(--red); }
+  .rules-section-title.tip { color: var(--muted); }
+  .rules-list { list-style: none; padding: 0; }
+  .rules-list li {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 3px 0;
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .rules-list li::before {
+    position: absolute;
+    left: 0;
+    font-size: 10px;
+  }
+  .rules-list.yes li::before { content: '✓'; color: var(--green); }
+  .rules-list.no  li::before { content: '✕'; color: var(--red); }
+  .rules-list.tip li::before { content: '·'; color: var(--muted); }
 
   .feed-item { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
   .feed-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-top: 5px; flex-shrink: 0; }
@@ -208,6 +257,45 @@
       </div>
       <div class="add-form">
 
+        <!-- Rules collapsible -->
+        <div class="rules-box">
+          <button class="rules-toggle" id="rules-toggle" onclick="toggleRules()">
+            <span>What counts as a call?</span>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="rules-body" id="rules-body">
+            <div class="rules-section">
+              <div class="rules-section-title yes">Log it</div>
+              <ul class="rules-list yes">
+                <li>"Buy / sell [specific stock]"</li>
+                <li>"I'd be a buyer/seller of X here"</li>
+                <li>"Get out of X" / "X is a buy"</li>
+                <li>Specific price target on a stock</li>
+                <li>Direction change on a previous call</li>
+              </ul>
+            </div>
+            <div class="rules-section">
+              <div class="rules-section-title no">Skip it</div>
+              <ul class="rules-list no">
+                <li>"Bullish on the S&P 500" — too vague</li>
+                <li>"I like tech here" — sector opinion</li>
+                <li>"X is interesting" — no clear direction</li>
+                <li>"I've owned X for years" — not a new call</li>
+                <li>Any ETF or index mention</li>
+              </ul>
+            </div>
+            <div class="rules-section">
+              <div class="rules-section-title tip">Rules</div>
+              <ul class="rules-list tip">
+                <li>One entry per call — don't re-log repeats</li>
+                <li>Use the date he said it, not today</li>
+                <li>Log direction changes as a new entry</li>
+                <li>Must name a specific ticker to count</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>Date of call</label>
           <input type="date" id="f-date" onchange="onTickerOrDateChange()">
@@ -240,7 +328,7 @@
           <div class="form-group">
             <label>
               Current price ($)
-              <span id="refresh-hint" style="font-size:10px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;" onclick="refreshCurrentPrice()" title="Refresh current price">↻</span>
+              <span id="refresh-hint" style="font-size:10px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;" onclick="refreshCurrentPrice()" title="Refresh">↻</span>
             </label>
             <input type="number" id="f-price-now" placeholder="—" step="0.01" readonly>
           </div>
@@ -281,6 +369,13 @@ const sbHeaders = {
   'Content-Type': 'application/json'
 };
 
+function toggleRules() {
+  const toggle = document.getElementById('rules-toggle');
+  const body = document.getElementById('rules-body');
+  toggle.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
 async function loadCalls() {
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/calls?order=date.desc', { headers: sbHeaders });
@@ -303,7 +398,7 @@ function onTickerOrDateChange() {
   clearTimeout(lookupTimer);
   const ticker = document.getElementById('f-ticker').value.trim();
   const date = document.getElementById('f-date').value;
-  if (!ticker || ticker.length < 1) return;
+  if (!ticker) return;
   lookupTimer = setTimeout(() => lookupPrices(ticker, date), 600);
 }
 
@@ -336,19 +431,16 @@ async function lookupPrices(ticker, date) {
 
     if (hist.historical && hist.historical.length > 0) {
       priceThenEl.value = hist.historical[0].close.toFixed(2);
-      priceThenEl.classList.remove('loading');
-      priceThenEl.classList.add('filled');
+      priceThenEl.classList.remove('loading'); priceThenEl.classList.add('filled');
       gotThen = true;
     } else {
       const closest = await fetchClosestPrice(ticker, date);
       if (closest) {
         priceThenEl.value = closest.toFixed(2);
-        priceThenEl.classList.remove('loading');
-        priceThenEl.classList.add('filled');
+        priceThenEl.classList.remove('loading'); priceThenEl.classList.add('filled');
         gotThen = true;
       } else {
-        priceThenEl.value = '';
-        priceThenEl.placeholder = 'Enter manually';
+        priceThenEl.value = ''; priceThenEl.placeholder = 'Enter manually';
         priceThenEl.classList.remove('loading', 'filled');
         priceThenEl.removeAttribute('readonly');
       }
@@ -356,50 +448,37 @@ async function lookupPrices(ticker, date) {
 
     if (Array.isArray(quote) && quote[0] && quote[0].price) {
       priceNowEl.value = quote[0].price.toFixed(2);
-      priceNowEl.classList.remove('loading');
-      priceNowEl.classList.add('filled');
+      priceNowEl.classList.remove('loading'); priceNowEl.classList.add('filled');
       gotNow = true;
     } else {
-      priceNowEl.value = '';
-      priceNowEl.placeholder = 'Enter manually';
+      priceNowEl.value = ''; priceNowEl.placeholder = 'Enter manually';
       priceNowEl.classList.remove('loading', 'filled');
       priceNowEl.removeAttribute('readonly');
     }
 
-    if (gotThen && gotNow) {
-      setHint('prices auto-filled', 'success');
-    } else if (gotThen || gotNow) {
-      setHint('partial — fill missing', 'error');
-    } else {
-      setHint('not found — enter manually', 'error');
-    }
+    if (gotThen && gotNow) setHint('prices auto-filled', 'success');
+    else if (gotThen || gotNow) setHint('partial — fill missing', 'error');
+    else setHint('not found — enter manually', 'error');
 
   } catch(e) {
     setHint('lookup failed — enter manually', 'error');
-    const priceThenEl = document.getElementById('f-price-then');
-    const priceNowEl = document.getElementById('f-price-now');
-    priceThenEl.classList.remove('loading');
-    priceNowEl.classList.remove('loading');
-    priceThenEl.removeAttribute('readonly');
-    priceNowEl.removeAttribute('readonly');
+    document.getElementById('f-price-then').classList.remove('loading');
+    document.getElementById('f-price-now').classList.remove('loading');
+    document.getElementById('f-price-then').removeAttribute('readonly');
+    document.getElementById('f-price-now').removeAttribute('readonly');
   }
 }
 
 async function fetchClosestPrice(ticker, targetDate) {
   try {
-    const from = new Date(targetDate);
-    from.setDate(from.getDate() - 5);
-    const fromStr = from.toISOString().split('T')[0];
-    const to = new Date(targetDate);
-    to.setDate(to.getDate() + 5);
-    const toStr = to.toISOString().split('T')[0];
-    const res = await fetch(`https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}?from=${fromStr}&to=${toStr}&apikey=${FMP_KEY}`);
+    const from = new Date(targetDate); from.setDate(from.getDate() - 5);
+    const to = new Date(targetDate); to.setDate(to.getDate() + 5);
+    const res = await fetch(`https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}?from=${from.toISOString().split('T')[0]}&to=${to.toISOString().split('T')[0]}&apikey=${FMP_KEY}`);
     const data = await res.json();
     if (data.historical && data.historical.length > 0) {
-      const sorted = data.historical.sort((a,b) => {
-        return Math.abs(new Date(a.date) - new Date(targetDate)) - Math.abs(new Date(b.date) - new Date(targetDate));
-      });
-      return sorted[0].close;
+      return data.historical.sort((a,b) =>
+        Math.abs(new Date(a.date) - new Date(targetDate)) - Math.abs(new Date(b.date) - new Date(targetDate))
+      )[0].close;
     }
   } catch(e) {}
   return null;
@@ -418,9 +497,7 @@ async function refreshCurrentPrice() {
       el.classList.add('filled');
       setHint('price refreshed', 'success');
     }
-  } catch(e) {
-    setHint('refresh failed', 'error');
-  }
+  } catch(e) { setHint('refresh failed', 'error'); }
 }
 
 function cramerReturn(c) {
@@ -456,11 +533,9 @@ function renderStats() {
   const avgIr = calls.reduce((s,c) => s + inverseReturn(c), 0) / calls.length;
   const winRate = Math.round(calls.filter(c => inverseReturn(c) > 0).length / calls.length * 100);
   const crEl = document.getElementById('stat-cramer');
-  crEl.textContent = fmt(avgCr);
-  crEl.className = 'stat-value ' + (avgCr >= 0 ? 'up' : 'down');
+  crEl.textContent = fmt(avgCr); crEl.className = 'stat-value ' + (avgCr >= 0 ? 'up' : 'down');
   const irEl = document.getElementById('stat-inverse');
-  irEl.textContent = fmt(avgIr);
-  irEl.className = 'stat-value ' + (avgIr >= 0 ? 'up' : 'down');
+  irEl.textContent = fmt(avgIr); irEl.className = 'stat-value ' + (avgIr >= 0 ? 'up' : 'down');
   document.getElementById('stat-count').textContent = calls.length;
   document.getElementById('stat-winrate').textContent = winRate + '%';
 }
@@ -591,12 +666,12 @@ async function addCall() {
       showToast(ticker + ' call saved.', 'success');
       document.getElementById('f-ticker').value = '';
       document.getElementById('f-company').value = '';
-      document.getElementById('f-price-then').value = '';
-      document.getElementById('f-price-then').classList.remove('filled');
-      document.getElementById('f-price-then').setAttribute('readonly', true);
-      document.getElementById('f-price-now').value = '';
-      document.getElementById('f-price-now').classList.remove('filled');
-      document.getElementById('f-price-now').setAttribute('readonly', true);
+      ['f-price-then','f-price-now'].forEach(id => {
+        const el = document.getElementById(id);
+        el.value = ''; el.placeholder = '—';
+        el.classList.remove('filled', 'loading');
+        el.setAttribute('readonly', true);
+      });
       setHint('', '');
       await loadCalls();
     } else {
